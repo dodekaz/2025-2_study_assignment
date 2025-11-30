@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class GameManager : MonoBehaviour
 {
+    Vector3 CamOffset = new Vector3(0, 4f, -6f); 
     UIManager MyUIManager;
 
     public GameObject BallPrefab;   // prefab of Ball
@@ -25,9 +26,11 @@ public class GameManager : MonoBehaviour
     void Awake()
     {
         // PlayerBall, CamObj, MyUIManager를 얻어온다.
-        // ---------- TODO ---------- 
-        
-        // -------------------- 
+        // ---------- TODO ----------
+        PlayerBall = GameObject.Find("PlayerBall");
+        CamObj = GameObject.Find("Main Camera");
+        MyUIManager = FindObjectOfType<UIManager>();
+        // --------------------
     }
 
     void Start()
@@ -39,9 +42,18 @@ public class GameManager : MonoBehaviour
     void Update()
     {
         // 좌클릭시 raycast하여 클릭 위치로 ShootBallTo 한다.
-        // ---------- TODO ---------- 
-        
-        // -------------------- 
+        // ---------- TODO ----------
+        if (Input.GetMouseButtonDown(0))
+        {
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+
+            if (Physics.Raycast(ray, out hit))
+            {
+                ShootBallTo(hit.point);
+            }
+        }
+        // --------------------
     }
 
     void LateUpdate()
@@ -51,21 +63,44 @@ public class GameManager : MonoBehaviour
 
     void SetupBalls()
     {
-        // 15개의 공을 삼각형 형태로 배치한다.
-        // 가장 앞쪽 공의 위치는 StartPosition이며, 공의 Rotation은 StartRotation이다.
-        // 각 공은 RowSpacing만큼의 간격을 가진다.
-        // 각 공의 이름은 {index}이며, 아래 함수로 index에 맞는 Material을 적용시킨다.
-        // Obj.GetComponent<MeshRenderer>().material = Resources.Load<Material>("Materials/ball_1");
-        // ---------- TODO ---------- 
-        
-        // -------------------- 
+        int ballIndex = 1;
+
+        for (int row = 0; row < 5; row++)
+        {
+            for (int i = 0; i <= row; i++)
+            {
+                float x = (i - row * 0.5f) * (BallRadius * 2 + RowSpacing);
+
+                float z = row * (BallRadius * Mathf.Sqrt(3) + RowSpacing);
+
+                Vector3 pos = StartPosition + new Vector3(x, 0, z);
+
+                GameObject ball = Instantiate(BallPrefab, pos, StartRotation);
+                ball.name = ballIndex.ToString();
+
+                Material mat = Resources.Load<Material>($"Materials/ball_{ballIndex}");
+                ball.GetComponent<MeshRenderer>().material = mat;
+
+                ballIndex++;
+            }
+        }
     }
+
+
     void CamMove()
     {
-        // CamObj는 PlayerBall을 CamSpeed의 속도로 따라간다.
-        // ---------- TODO ---------- 
-        
-        // -------------------- 
+        if (CamObj != null && PlayerBall != null)
+        {
+            Vector3 targetPos = PlayerBall.transform.position + CamOffset;
+
+            CamObj.transform.position = Vector3.Lerp(
+                CamObj.transform.position,
+                targetPos,
+                Time.deltaTime * CamSpeed
+            );
+
+            CamObj.transform.LookAt(PlayerBall.transform);
+        }
     }
 
     float CalcPower(Vector3 displacement)
@@ -78,17 +113,37 @@ public class GameManager : MonoBehaviour
         // targetPos의 위치로 공을 발사한다.
         // 힘은 CalcPower 함수로 계산하고, y축 방향 힘은 0으로 한다.
         // ForceMode.Impulse를 사용한다.
-        // ---------- TODO ---------- 
-        
-        // -------------------- 
+        // ---------- TODO ----------
+
+        if (PlayerBall == null) return;
+
+        Rigidbody rb = PlayerBall.GetComponent<Rigidbody>();
+        if (rb == null) return;
+
+        Vector3 dir = (targetPos - PlayerBall.transform.position);
+        dir.y = 0;                         // y축 힘 제거
+        float power = CalcPower(dir);
+
+        rb.AddForce(dir.normalized * power, ForceMode.Impulse);
+
+        // --------------------
     }
-    
+
     // When ball falls
     public void Fall(string ballName)
     {
         // "{ballName} falls"을 1초간 띄운다.
-        // ---------- TODO ---------- 
-        
-        // -------------------- 
+        // ---------- TODO ----------
+
+        StartCoroutine(ShowFallMessage(ballName));
+
+        // --------------------
+    }
+
+    IEnumerator ShowFallMessage(string ballName)
+    {
+        MyUIManager.DisplayText($"{ballName} falls", 1f);
+        yield return new WaitForSeconds(1f);
+        MyUIManager.DisplayText("", 0f);
     }
 }
